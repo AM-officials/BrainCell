@@ -1,0 +1,93 @@
+# Node / Vite
+node_modules/
+dist/
+.vite/
+.eslintcache
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Environments & secrets
+.env
+*.env
+*.env.*
+**/.env
+braincell_backend/.env
+
+# Databases & local state
+braincell_backend/braincell_sessions.db
+*.sqlite
+*.sqlite3
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Project-local docs or trackers not meant for the repo
+Technical Requirement.pdf
+Z.AI GLM 4.5 Air.txt
+FINAL_STATUS_REPORT.md
+GEMINI_INTEGRATION_STATUS.md
+FINAL_SUMMARY.md
+
+# Misc
+.azure/
+**/*.log
+**/.cache/
+# Dependencies
+node_modules
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Production
+/dist
+/build
+
+# Misc
+.DS_Store
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Python backend artifacts
+braincell_backend/.env
+braincell_backend/.venv/
+braincell_backend/__pycache__/
+braincell_backend/*.log
+braincell_backend/.pytest_cache/
+braincell_backend/.mypy_cache/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.fleet
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
