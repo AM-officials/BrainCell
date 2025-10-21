@@ -12,16 +12,22 @@ scipy==1.13.1
 pytest==8.3.3
 black==24.8.0
 ruff==0.6.9
+
+# ML Dependencies - CPU-only versions to reduce size (no CUDA)
 opencv-python-headless==4.10.0.84
 pillow==10.4.0
+
+# Transformers with PyTorch CPU (smaller than GPU version)
+transformers==4.44.2
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.4.1+cpu
+huggingface-hub==0.26.5
+sentencepiece==0.2.0
+
+# TensorFlow CPU-only (3x smaller than GPU version: ~800MB vs 2.5GB)
+tensorflow-cpu==2.17.0
 
 # Database drivers (required for PostgreSQL/Supabase)
 asyncpg==0.30.0
 sqlalchemy==2.0.35
 aiosqlite==0.20.0
-
-# Lightweight ML dependencies (removed TensorFlow & PyTorch to reduce image size)
-# Use transformers with CPU-only inference for emotion detection
-transformers==4.44.2
-huggingface-hub==0.26.5
-sentencepiece==0.2.0
