@@ -1,42 +1,48 @@
-# Backend Dockerfile
+# Production Dockerfile for Railway
 FROM python:3.12-slim
 
+# Set working directory
 WORKDIR /app
 
-# Install system dependencies (including OpenCV requirements)
-RUN apt-get update && apt-get install -y \
+# Install system dependencies for OpenCV, audio processing, and ML
+# Note: Debian Trixie (Python 3.12) uses 'libgl1' not 'libgl1-mesa-glx'
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    libgl1-mesa-glx \
+    g++ \
+    libgl1 \
     libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
     libsndfile1 \
     ffmpeg \
     portaudio19-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy project files first (for better caching)
-COPY pyproject.toml ./
-COPY requirements.txt* ./
+# Copy dependency files
+COPY requirements.txt ./
 
-# Install Python dependencies (try requirements.txt first, fallback to pyproject.toml)
-RUN if [ -f requirements.txt ]; then \
-      pip install --no-cache-dir -r requirements.txt; \
-    else \
-      pip install --no-cache-dir -e .; \
-    fi
+# Upgrade pip and install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app ./app
 
-# Create non-root user
-RUN useradd -m -u 1000 braincell && chown -R braincell:braincell /app
+# Create non-root user for security
+RUN useradd -m -u 1000 braincell && \
+    chown -R braincell:braincell /app
+
+# Switch to non-root user
 USER braincell
 
-# Expose port
+# Expose port (Railway will inject $PORT)
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT:-8000}/health').read()" || exit 1
 
-# Run application (Railway injects $PORT env var)
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Start command (Railway injects $PORT environment variable)
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
