@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+braincell_backend/
+
+# Build outputs
+.vite/
+.eslintcache
+
+# Environment
+.env
+.env.local
+.env*.local
+
+# Databases
+*.db
+*.sqlite
+
+# Editors
+.vscode/
+.idea/
+
+# AI-generated docs
+*_FIX.md
+*_COMPLETE.md
+*_GUIDE.md
+*_SUMMARY.md
+
+# Tests
+e2e/
+playwright.config.ts
+
+# Misc
+.DS_Store
+*.log

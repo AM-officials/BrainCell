@@ -16,3 +16,8 @@ opencv-python==4.10.0.84
 transformers==4.44.2
 torch==2.4.1
 huggingface-hub==0.26.5
+
+# Database drivers (required for PostgreSQL/Supabase)
+asyncpg==0.30.0
+sqlalchemy==2.0.35
+aiosqlite==0.20.0

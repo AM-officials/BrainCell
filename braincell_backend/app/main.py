@@ -27,6 +27,8 @@ def create_application() -> FastAPI:
             "http://127.0.0.1:8001",
             "http://localhost:8002",  # Alternate backend port
             "http://127.0.0.1:8002",
+            "https://*.vercel.app",   # Vercel deployments
+            "https://*.railway.app",  # Railway deployments
         ],
         allow_credentials=True,
         allow_methods=["*"],
