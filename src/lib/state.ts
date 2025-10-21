@@ -1,6 +1,35 @@
 import { create } from 'zustand'
 import { CognitiveState, SessionStore, ChatStore, CognitiveStore, GraphStore } from '@/types'
 
+// Live Analytics / Metrics Store
+type MetricsState = {
+  facialExpression: string | null
+  vocalState: string | null
+  textFriction: { rephraseCount: number; backspaceCount: number }
+  frictionIntensity: number // 0..1 (decays over time)
+  facialCandidates?: Array<{ label: string; score: number }>
+  vocalCandidates?: Array<{ label: string; score: number }>
+  setFacialExpression: (v: string | null) => void
+  setVocalState: (v: string | null) => void
+  setTextFriction: (rephraseCount: number, backspaceCount: number) => void
+  setFrictionIntensity: (value: number) => void
+  setFacialCandidates: (cands: Array<{ label: string; score: number }> | undefined) => void
+  setVocalCandidates: (cands: Array<{ label: string; score: number }> | undefined) => void
+}
+
+export const useMetricsStore = create<MetricsState>((set) => ({
+  facialExpression: null,
+  vocalState: null,
+  textFriction: { rephraseCount: 0, backspaceCount: 0 },
+  frictionIntensity: 0,
+  setFacialExpression: (v) => set({ facialExpression: v }),
+  setVocalState: (v) => set({ vocalState: v }),
+  setTextFriction: (rephraseCount, backspaceCount) => set({ textFriction: { rephraseCount, backspaceCount } }),
+  setFrictionIntensity: (value) => set({ frictionIntensity: Math.max(0, Math.min(1, value)) }),
+  setFacialCandidates: (cands) => set({ facialCandidates: cands }),
+  setVocalCandidates: (cands) => set({ vocalCandidates: cands }),
+}))
+
 // Session Store
 export const useSessionStore = create<SessionStore>((set) => ({
   session: null,

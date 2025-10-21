@@ -128,7 +128,7 @@ export const KnowledgeGraph: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 relative min-h-[400px]">
+      <div className="flex-1 relative min-h-[400px]" style={{ width: '100%', height: '100%' }}>
         {nodes.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
             <p>Knowledge graph will appear as you learn...</p>

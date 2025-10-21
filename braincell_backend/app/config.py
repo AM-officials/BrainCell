@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     openrouter_api_key: str = Field("", env="OPENROUTER_API_KEY")
     glm_model_id: str = Field("z-ai/glm-4.5-air", env="GLM_MODEL_ID")
 
+    # Optional Keras facial emotion model path
+    emo_model_path: str = Field("", env="EMO_MODEL_PATH")
+    
+    # Database
+    database_url: str = Field("sqlite+aiosqlite:///./braincell_sessions.db", env="DATABASE_URL")
+
     class Config:
         # Always read environment from the backend folder's .env regardless of CWD
         env_file = str(Path(__file__).resolve().parents[1] / ".env")

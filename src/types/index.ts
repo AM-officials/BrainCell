@@ -2,7 +2,7 @@
 export type CognitiveState = 'FOCUSED' | 'CONFUSED' | 'FRUSTRATED'
 export type ResponseType = 'text' | 'diagram' | 'code'
 export type FacialExpression = 'fear' | 'sad' | 'angry' | 'surprise' | 'neutral' | 'happy'
-export type VocalState = 'calm' | 'hesitant' | 'stressed'
+export type VocalState = 'calm' | 'hesitant' | 'stressed' | 'frustrated'
 
 // Session Types
 export interface Session {

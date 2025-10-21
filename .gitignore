@@ -11,6 +11,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+*.egg-info/
 
 # Environments & secrets
 .env
@@ -21,8 +22,11 @@ braincell_backend/.env
 
 # Databases & local state
 braincell_backend/braincell_sessions.db
+braincell_sessions.db
 *.sqlite
 *.sqlite3
+*.db
+*.db-journal
 
 # Editors / OS
 .vscode/
@@ -37,12 +41,87 @@ FINAL_STATUS_REPORT.md
 GEMINI_INTEGRATION_STATUS.md
 FINAL_SUMMARY.md
 
+# AI-generated documentation (not for production)
+*_FIX.md
+*_FIXES.md
+*_COMPLETE.md
+*_GUIDE.md
+*_REFERENCE.md
+*_SETUP.md
+*_SUCCESS.md
+*_REPORT.md
+*_APPLIED.md
+*_SUMMARY.md
+FIXES_*.md
+BUGS_*.md
+CLERK_*.md
+SUPABASE_*.md
+MIGRATION_*.md
+FEATURE_*.md
+CUSTOM_*.md
+REAL_*.md
+ACCOUNT_*.md
+AUTH_*.md
+CORS_*.md
+CLASSROOM_*.md
+CLEAN_*.md
+DEPLOYMENT.md
+DESIGN_TOKEN.md
+GEMINI_SUCCESS.md
+HACKATHON_PITCH.md
+PORT_*.md
+PROGRESS.md
+QUICK_START.md
+README.old.md
+SIGNUP_*.md
+TESTING_GUIDE.md
+VERCEL.md
+DEMO_TICKLIST.md
+
+# Planning and temporary files
+.plan
+.todo
+.TODO_*
+*.txt
+steps.txt
+braincell version *.txt
+
+# Test and migration scripts
+e2e/
+braincell_backend/tests/
+playwright.config.ts
+braincell_backend/test_*.py
+braincell_backend/check_*.py
+braincell_backend/verify_*.py
+braincell_backend/migrate_*.py
+braincell_backend/setup_supabase.ps1
+switch-to-supabase.ps1
+
+# Backup files
+*.bak
+*.OLD.*
+src/App.CLERK.tsx.bak
+src/main.CLERK.tsx.bak
+src/App.OLD.tsx
+src/App.NEW.tsx
+src/App.SUPABASE.tsx
+src/main.SUPABASE.tsx
+
+# Docker (if not deploying)
+Dockerfile.frontend
+docker-compose.yml
+nginx.conf
+
+# Models directory (too large)
+models/
+
+# Lock files
+package-lock.json
+
 # Misc
 .azure/
 **/*.log
 **/.cache/
-# Dependencies
-node_modules
 /.pnp
 .pnp.js
 

@@ -12,7 +12,8 @@ const ALLOW_FALLBACK = import.meta.env.VITE_ALLOW_FALLBACK === 'true'
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
-  timeout: 15000,
+  // Increase default timeout: model cold starts or large audio can exceed 15s on first call
+  timeout: 25000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -106,6 +107,54 @@ export const analyzeSession = async (
     }
     // Surface the error to the UI so user knows real API failed
     throw error
+  }
+}
+
+// Analytics: facial snapshot -> label
+export const submitFacialSnapshot = async (
+  imageBase64: string
+): Promise<{ label: string; score?: number; candidates?: [string, number][]; source?: string }> => {
+  try {
+    const res = await apiClient.post<{ label: string; score?: number; candidates?: [string, number][], source?: string }>(
+      '/api/v1/session/metrics/facial',
+      { image: imageBase64 }
+    )
+    return res.data
+  } catch (e) {
+    console.error('Facial metrics failed', e)
+    throw e
+  }
+}
+
+// Analytics: voice clip -> label
+export const submitVoiceClip = async (
+  audioBase64: string
+): Promise<{ label: string; score?: number; candidates?: [string, number][]; source?: string }> => {
+  try {
+    const res = await apiClient.post<{ label: string; score?: number; candidates?: [string, number][], source?: string }>(
+      '/api/v1/session/metrics/voice',
+      { audio: audioBase64 }
+    )
+    return res.data
+  } catch (e) {
+    console.error('Voice metrics failed', e)
+    throw e
+  }
+}
+
+// Analytics: model health status
+export const getMetricsHealth = async (): Promise<{
+  facial_model: string
+  voice_model: string
+}> => {
+  try {
+    const res = await apiClient.get<{ facial_model: string; voice_model: string }>(
+      '/api/v1/session/metrics/health'
+    )
+    return res.data
+  } catch (e) {
+    console.error('Metrics health check failed', e)
+    return { facial_model: 'unknown', voice_model: 'unknown' }
   }
 }
 
@@ -428,4 +477,25 @@ export const healthCheck = async (): Promise<boolean> => {
   } catch {
     return false
   }
+}
+
+/**
+ * Feature 1.0: Offline Mode - Content Bundle Download
+ * Downloads a complete lesson bundle for offline usage
+ */
+export const downloadContentBundle = async (topic: string): Promise<any> => {
+  try {
+    const response = await apiClient.get(`/api/v1/session/content/download/${encodeURIComponent(topic)}`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to download content bundle:', error)
+    throw error
+  }
+}
+
+/**
+ * Check if we're currently offline
+ */
+export const isOffline = (): boolean => {
+  return !navigator.onLine
 }

@@ -4,9 +4,11 @@ import { cn } from '@/lib/utils'
 
 interface WebcamThumbProps {
   onSnapshot?: (imageDataUrl: string) => void
+  onPermissionChange?: (state: 'granted' | 'denied' | 'prompt') => void
+  className?: string
 }
 
-export const WebcamThumb: React.FC<WebcamThumbProps> = ({ onSnapshot }) => {
+export const WebcamThumb: React.FC<WebcamThumbProps> = ({ onSnapshot, onPermissionChange, className }) => {
   const [enabled, setEnabled] = useState(false)
   const [stream, setStream] = useState<MediaStream | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -19,14 +21,17 @@ export const WebcamThumb: React.FC<WebcamThumbProps> = ({ onSnapshot }) => {
       setEnabled(false)
     } else {
       try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true })
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false,
+        })
         setStream(mediaStream)
         setEnabled(true)
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream
-        }
+        // Permission granted
+        onPermissionChange?.('granted')
       } catch (error) {
         console.error('Webcam access denied:', error)
+        onPermissionChange?.('denied')
       }
     }
   }
@@ -63,8 +68,36 @@ export const WebcamThumb: React.FC<WebcamThumbProps> = ({ onSnapshot }) => {
     }
   }, [stream])
 
+  // Attach stream to video element after it exists in the DOM
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !stream) return
+
+    video.srcObject = stream
+    video.muted = true
+    video.playsInline = true
+
+    const tryPlay = () => {
+      video.play().catch((e) => {
+        // Autoplay can be blocked; will resume on next user gesture
+        console.warn('Video autoplay prevented; will retry on user gesture', e)
+      })
+    }
+
+    if (video.readyState >= 2) {
+      // Have enough data to play
+      tryPlay()
+    } else {
+      const handler = () => {
+        tryPlay()
+      }
+      video.addEventListener('loadedmetadata', handler, { once: true })
+      return () => video.removeEventListener('loadedmetadata', handler)
+    }
+  }, [stream])
+
   return (
-    <div className="space-y-2">
+    <div className={cn("space-y-2", className)}>
       <button
         onClick={toggleWebcam}
         className={cn(
@@ -86,7 +119,8 @@ export const WebcamThumb: React.FC<WebcamThumbProps> = ({ onSnapshot }) => {
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-cover"
+            controls={false}
+            className="w-full h-full object-cover bg-black [visibility:visible]"
           />
           <canvas ref={canvasRef} className="hidden" />
         </div>

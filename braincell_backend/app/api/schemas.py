@@ -77,6 +77,7 @@ class AIResponse(BaseModel):
     content: str
     cognitive_state: CognitiveState = Field(..., alias="cognitiveState")
     knowledge_graph_delta: KnowledgeGraphDelta = Field(..., alias="knowledgeGraphDelta")
+    metrics: dict | None = None
 
     class Config:
         allow_population_by_field_name = True

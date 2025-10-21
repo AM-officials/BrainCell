@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...config import Settings, get_settings
@@ -25,9 +26,19 @@ from ..schemas import (
     ResponseType,
     UserInput,
 )
+from ...cognitive_modules.voice_analyzer import infer_vocal_state
+from ...cognitive_modules.face_emotion import infer_face_emotion, get_facial_model_status
+from ...cognitive_modules.voice_emotion import infer_voice_emotion
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+class FacialSnapshot(BaseModel):
+    image: str
+
+
+class VoiceClip(BaseModel):
+    audio: str
+
 
 
 async def get_client(
@@ -77,6 +88,43 @@ async def analyze_session(
             success = 0
         
         latency_ms = (time.perf_counter() - start_time) * 1000
+
+        # Build analytics metrics (lightweight; placeholder facial/vocal for now)
+        # Live analytics: recompute facial/voice when we have raw inputs
+        facial_label = context.facial_expression.value if context.facial_expression else None
+        if payload.meta and isinstance(payload.meta, dict) and payload.meta.get("latestSnapshot"):
+            try:
+                fr = infer_face_emotion(payload.meta["latestSnapshot"], model_path=get_settings().emo_model_path or None)
+                facial_label = fr.label
+            except Exception:
+                pass
+
+        vocal_label = None
+        if payload.audio_blob:
+            try:
+                vocal_label = infer_voice_emotion(payload.audio_blob).label
+            except Exception:
+                pass
+        if not vocal_label:
+            try:
+                vs = infer_vocal_state(payload.audio_blob)
+                vocal_label = vs.value if vs else None
+            except Exception:
+                pass
+
+        analytics = {
+            "facial_expression": facial_label,
+            "vocal_state": vocal_label,
+            "text_friction": {
+                "rephraseCount": payload.text_friction.rephrase_count,
+                "backspaceCount": payload.text_friction.backspace_count,
+            },
+        }
+        # Attach metrics to response (non-breaking, optional field)
+        try:
+            setattr(ai_response, "metrics", analytics)
+        except Exception:
+            pass
         
         # Persist to database but do not fail the request if persistence fails
         try:
@@ -85,6 +133,22 @@ async def analyze_session(
 
             # Log usage metrics
             await _store_metrics(db, payload.session_id, llm_usage, latency_ms, success)
+
+            # Feature 2.0: Track concept mastery from knowledge graph
+            if ai_response.knowledge_graph_delta and ai_response.knowledge_graph_delta.nodes:
+                from ...cognitive_modules.knowledge_gaps import track_concept_interaction
+                for node in ai_response.knowledge_graph_delta.nodes:
+                    try:
+                        await track_concept_interaction(
+                            db=db,
+                            student_id=payload.session_id,  # Using session_id as student identifier
+                            concept_id=node.id,
+                            concept_name=node.label,
+                            topic=context.topic,
+                            cognitive_state=ai_response.cognitive_state,
+                        )
+                    except Exception as track_exc:  # noqa: BLE001
+                        logger.warning(f"Failed to track concept {node.label}: {track_exc}")
 
             # Commit all database changes
             await db.commit()
@@ -222,14 +286,35 @@ def _fallback_response(context: CognitiveContext, cognitive_state: CognitiveStat
         )
     elif cognitive_state == CognitiveState.CONFUSED:
         modality = ResponseType.DIAGRAM
-        content = (
-            "It seems the concept is still fuzzy. Visualising the flow often helps—picture the main concept as a hub with the sub-components branching out."
-        )
+        # Generate proper Mermaid diagram syntax
+        topic_safe = context.topic.replace('"', '').replace('\n', ' ')[:50]
+        content = f"""graph TD
+    A["{topic_safe}"] --> B["Core Concept"]
+    A --> C["Key Components"]
+    A --> D["Related Ideas"]
+    B --> E["Foundation"]
+    C --> F["Sub-topics"]
+    D --> G["Connections"]
+"""
     else:
         modality = ResponseType.CODE
-        content = (
-            "Hands-on practice can break frustration. Below is a small code experiment; tweak the highlighted line and observe how the behaviour changes."
-        )
+        # Generate simple runnable code example
+        topic_safe = context.topic.replace('"', '').replace("'", '').replace('\n', ' ')[:30]
+        content = f"""// Let's break down {topic_safe} with a simple example
+// Try changing the values and see what happens!
+
+function explore() {{
+  // Change this value to experiment
+  const value = 42;
+  
+  console.log("Starting with:", value);
+  console.log("Doubled:", value * 2);
+  console.log("Squared:", value ** 2);
+  
+  return value;
+}}
+
+explore();"""
 
     node_id = f"node_{context.topic.lower().replace(' ', '_')}"
     node = KnowledgeGraphNode(
@@ -241,7 +326,7 @@ def _fallback_response(context: CognitiveContext, cognitive_state: CognitiveStat
 
     return AIResponse(
         responseType=modality,
-        content=f"{headline}\n\n{content}",
+        content=content,
         cognitiveState=cognitive_state,
         knowledgeGraphDelta=KnowledgeGraphDelta(nodes=[node], edges=[]),
     )
@@ -295,6 +380,66 @@ async def _store_metrics(
     db.add(metrics)
 
 
+@router.post("/metrics")
+async def post_metrics(payload: UserInput) -> dict[str, Any]:
+    """Return analytics-only view without LLM call, for live dashboards.
+
+    This endpoint computes and returns current multimodal metrics from the payload.
+    """
+    cognitive_state = fuse_cognitive_signals(
+        text_friction=payload.text_friction,
+        vocal_state=payload.vocal_state,
+        facial_expression=payload.facial_expression,
+    )
+    analytics = {
+        "cognitiveState": cognitive_state.value,
+        "facial_expression": payload.facial_expression.value if payload.facial_expression else None,
+        "vocal_state": infer_vocal_state(payload.audio_blob).value if infer_vocal_state(payload.audio_blob) else None,
+        "text_friction": {
+            "rephraseCount": payload.text_friction.rephrase_count,
+            "backspaceCount": payload.text_friction.backspace_count,
+        },
+    }
+    return analytics
+
+
+@router.post("/metrics/facial")
+async def facial_metrics(snapshotBase64: FacialSnapshot, settings: Annotated[Settings, Depends(get_settings)]) -> dict[str, Any]:
+    """Accepts a base64 image snapshot and returns facial emotion via HF pipeline (or heuristic fallback)."""
+    image_b64 = snapshotBase64.image
+    if not image_b64:
+        return {"error": "missing image"}
+    result = infer_face_emotion(image_b64, model_path=settings.emo_model_path or None)
+    return {"label": result.label, "score": result.score, "candidates": result.candidates, "source": getattr(result, "source", "heuristic")}
+
+
+@router.post("/metrics/voice")
+async def voice_metrics(audioBase64: VoiceClip) -> dict[str, Any]:
+    """Accepts a base64 audio clip and returns voice emotion via HF wav2vec2 model (or fallback)."""
+    audio_b64 = audioBase64.audio
+    if not audio_b64:
+        return {"error": "missing audio"}
+    result = infer_voice_emotion(audio_b64)
+    return {"label": result.label, "score": result.score, "candidates": result.candidates, "source": getattr(result, "source", "fallback")}
+
+
+@router.get("/metrics/health")
+async def metrics_health(settings: Annotated[Settings, Depends(get_settings)]) -> dict[str, Any]:
+    facial_status = get_facial_model_status(settings.emo_model_path or None)
+    # Voice model status (simple check)
+    voice_status = "available"
+    try:
+        from ...cognitive_modules import voice_emotion as _ve  # noqa: WPS433
+        if getattr(_ve, "torch", None) is None:
+            voice_status = "unavailable"
+    except Exception:
+        voice_status = "unavailable"
+    return {
+        "facial_model": facial_status,
+        "voice_model": voice_status,
+    }
+
+
 @router.get("/provider/health")
 async def provider_health(
     client: Annotated[GoogleAIClient | OpenRouterClient, Depends(get_client)],
@@ -321,4 +466,117 @@ async def provider_health(
             "provider": settings.model_provider,
             "model": getattr(settings, "model_id", None),
             "error": str(exc),
+        }
+
+
+@router.get("/content/download/{topic}")
+async def download_content_bundle(
+    topic: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    client: Annotated[GoogleAIClient | OpenRouterClient, Depends(get_client)],
+) -> dict[str, Any]:
+    """
+    Feature 1.0: Offline Mode - Content Bundle Download
+    Returns a complete lesson bundle for offline usage including:
+    - Topic overview and learning objectives
+    - Core concepts and explanations
+    - Example code/diagrams
+    - Practice questions
+    - Knowledge graph structure
+    """
+    try:
+        # Generate comprehensive lesson content using LLM
+        prompt = f"""Generate a complete offline lesson bundle for the topic: {topic}
+
+Structure the response as JSON with these sections:
+1. overview: Brief introduction to the topic
+2. objectives: List of 3-5 learning objectives
+3. concepts: Array of key concepts with explanations
+4. examples: Array of practical examples (code/diagrams)
+5. practice: Array of 5 practice questions with hints
+6. knowledgeGraph: Nodes and edges showing concept relationships
+
+Make this content work offline - no external links, self-contained explanations."""
+
+        resp = await client.generate(prompt)
+        
+        try:
+            content = json.loads(resp.content)
+        except json.JSONDecodeError:
+            # Fallback if LLM doesn't return valid JSON
+            content = {
+                "overview": resp.content[:500],
+                "objectives": [f"Understand {topic}", f"Apply {topic} concepts", f"Practice {topic}"],
+                "concepts": [{"name": topic, "explanation": resp.content}],
+                "examples": [],
+                "practice": [],
+                "knowledgeGraph": {
+                    "nodes": [{"id": topic, "label": topic, "type": "concept"}],
+                    "edges": []
+                }
+            }
+
+        bundle = {
+            "topic": topic,
+            "content": content,
+            "timestamp": datetime.now(UTC).isoformat(),
+            "version": "1.2.0",
+            "offline_ready": True,
+        }
+
+        logger.info(f"Generated content bundle for topic: {topic}")
+        return bundle
+
+    except Exception as exc:  # noqa: BLE001
+        logger.exception(f"Failed to generate content bundle for {topic}", exc_info=exc)
+        return {
+            "error": "Failed to generate content",
+            "topic": topic,
+            "message": str(exc),
+        }
+
+
+@router.get("/learning-report/{student_id}")
+async def get_learning_report(
+    student_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    topic: str | None = None,
+) -> dict[str, Any]:
+    """
+    Feature 2.0: Knowledge Gap Detection - Learning Report
+    Returns comprehensive gap analysis for a student
+    """
+    from ...cognitive_modules.knowledge_gaps import detect_gaps
+    
+    try:
+        report = await detect_gaps(db, student_id, topic)
+        return report
+    except Exception as exc:  # noqa: BLE001
+        logger.exception(f"Failed to generate learning report for {student_id}", exc_info=exc)
+        return {
+            "error": "Failed to generate report",
+            "student_id": student_id,
+            "message": str(exc),
+        }
+
+
+@router.get("/progress/{student_id}")
+async def get_student_progress(
+    student_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """
+    Feature 2.0: Get overall student progress across all topics
+    """
+    from ...cognitive_modules.knowledge_gaps import get_student_progress as get_progress
+    
+    try:
+        progress = await get_progress(db, student_id)
+        return progress
+    except Exception as exc:  # noqa: BLE001
+        logger.exception(f"Failed to get progress for {student_id}", exc_info=exc)
+        return {
+            "error": "Failed to get progress",
+            "student_id": student_id,
+            "message": str(exc),
         }

@@ -6,11 +6,21 @@ from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from ..config import get_settings
 from .models import Base
 
-DATABASE_URL = "sqlite+aiosqlite:///./braincell_sessions.db"
+settings = get_settings()
+DATABASE_URL = settings.database_url
 
-engine = create_async_engine(DATABASE_URL, echo=False, future=True)
+# Configure engine based on database type
+engine_kwargs = {"echo": False, "future": True}
+if DATABASE_URL.startswith("postgresql"):
+    # PostgreSQL specific configuration
+    engine_kwargs["pool_pre_ping"] = True
+    engine_kwargs["pool_size"] = 10
+    engine_kwargs["max_overflow"] = 20
+
+engine = create_async_engine(DATABASE_URL, **engine_kwargs)
 async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 

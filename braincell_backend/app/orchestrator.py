@@ -30,11 +30,16 @@ def fuse_cognitive_signals(
     # Textual friction
     if text_friction.rephrase_count > 1:
         score += 3
-    if text_friction.backspace_count > 15:
-        score += 1
+    if text_friction.backspace_count > 10:
+        score += 2
+    if text_friction.backspace_count > 20:
+        score += 3
 
     # Vocal cues
     if vocal_state == VocalState.HESITANT:
+        score += 3
+    # Treat stressed as leaning towards confusion/frustration
+    if getattr(VocalState, 'STRESSED', None) and vocal_state == VocalState.STRESSED:  # type: ignore[attr-defined]
         score += 4
 
     # Facial expressions
@@ -47,4 +52,8 @@ def fuse_cognitive_signals(
     elif facial_expression == FacialExpression.SURPRISE:
         score += 1
 
-    return CognitiveState.CONFUSED if score >= 5 else CognitiveState.FOCUSED
+    # Strong confusion threshold
+    if score >= 8:
+        return CognitiveState.FRUSTRATED
+
+    return CognitiveState.CONFUSED if score >= 4 else CognitiveState.FOCUSED

@@ -88,7 +88,7 @@ export const StateBadgeDetailed: React.FC<StateBadgeProps> = ({
   return (
     <div
       className={cn(
-        'flex items-start gap-3 rounded-2xl p-4 transition-all duration-300',
+        'flex items-start gap-2 rounded-xl p-3 transition-all duration-300',
         config.bgClass,
         'ring-1',
         config.ringClass,
@@ -97,12 +97,12 @@ export const StateBadgeDetailed: React.FC<StateBadgeProps> = ({
       role="status"
       aria-label={`Cognitive state: ${config.label} - ${config.description}`}
     >
-      <div className={cn('rounded-full p-2', config.bgClass, config.pulseClass)}>
-        <Icon className={cn('h-6 w-6', config.textClass)} aria-hidden="true" />
+      <div className={cn('rounded-full p-1.5', config.bgClass, config.pulseClass)}>
+        <Icon className={cn('h-5 w-5', config.textClass)} aria-hidden="true" />
       </div>
       <div className="flex-1">
-        <h3 className={cn('font-semibold', config.textClass)}>{config.label}</h3>
-        <p className="text-sm text-muted-foreground mt-1">{config.description}</p>
+        <h3 className={cn('font-semibold text-sm', config.textClass)}>{config.label}</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">{config.description}</p>
       </div>
     </div>
   )
