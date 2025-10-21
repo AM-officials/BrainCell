@@ -33,9 +33,6 @@ Go to **Variables** tab and add these ONE BY ONE:
 # Database (Supabase connection string)
 DATABASE_URL=postgresql+asyncpg://postgres:Braincell%401@db.nsxbpxlsjbkphhfkiosq.supabase.co:5432/postgres
 
-# Clerk Authentication (get from Clerk dashboard)
-CLERK_SECRET_KEY=sk_test_UqQp2VPOMajSOwGkvFpKQKOo65ubBPbrgsjQeAHo14
-
 # Google AI Studio API
 GOOGLE_API_KEY=AIzaSyDfvAFvuHckuAKzmCorGUJeuMrEpIolQHk
 MODEL_PROVIDER=google
@@ -52,6 +49,7 @@ ENVIRONMENT=production
 - Railway automatically sets `PORT` variable - DON'T add it manually!
 - Password special characters must be URL-encoded (`@` becomes `%40`)
 - Leave `EMO_MODEL_PATH` empty to auto-download from HuggingFace
+- **Authentication:** Using Supabase Auth (frontend handles auth, no backend API key needed)
 
 ### Get Backend URL
 After deployment completes, copy the Railway URL:
