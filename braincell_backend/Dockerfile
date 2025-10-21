@@ -10,9 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install to /install directory
+# Copy requirements and install Python packages
 COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install --upgrade pip && \
+RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # Stage 2: Runtime - Copy only what's needed
@@ -31,16 +31,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy installed packages from builder
 COPY --from=builder /install /usr/local
 
-# Aggressive cleanup of unnecessary files in packages
+# Aggressive cleanup of unnecessary files to reduce image size
 RUN find /usr/local/lib/python3.12/site-packages -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true && \
     find /usr/local/lib/python3.12/site-packages -type d -name "test" -exec rm -rf {} + 2>/dev/null || true && \
-    find /usr/local/lib/python3.12/site-packages -type d -name "*.dist-info" -exec rm -rf {}/RECORD {} + 2>/dev/null || true && \
     find /usr/local/lib/python3.12/site-packages -name "*.pyc" -delete && \
     find /usr/local/lib/python3.12/site-packages -name "*.pyo" -delete && \
-    find /usr/local/lib/python3.12/site-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
-    rm -rf /usr/local/lib/python3.12/site-packages/torch/test 2>/dev/null || true && \
-    rm -rf /usr/local/lib/python3.12/site-packages/tensorflow/include 2>/dev/null || true && \
-    rm -rf /usr/local/lib/python3.12/site-packages/tensorflow/python/keras/datasets 2>/dev/null || true
+    find /usr/local/lib/python3.12/site-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
 # Copy application code
 COPY app ./app
