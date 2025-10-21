@@ -121,6 +121,20 @@ Click "Deploy" and wait 2-3 minutes.
 2. Commit changes: `git add . && git commit -m "fix: Add database drivers" && git push`
 3. Railway will auto-redeploy with new dependencies
 
+#### ❌ "ModuleNotFoundError: No module named 'cv2'" (OpenCV Error)
+**Problem:** OpenCV requires system libraries not available by default
+
+**Solution (ALREADY FIXED):**
+1. ✅ Changed `opencv-python` → `opencv-python-headless` (no GUI needed)
+2. ✅ Created `nixpacks.toml` with system dependencies (libgl1, libglib2.0)
+3. ✅ Created `Aptfile` for Render (if using Render instead of Railway)
+4. Just commit and push - Railway will auto-install system packages:
+   ```powershell
+   git add .
+   git commit -m "fix: Add OpenCV system dependencies"
+   git push origin main
+   ```
+
 #### ❌ CORS Error
 **Problem:** Frontend can't connect to backend
 

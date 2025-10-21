@@ -1,0 +1,14 @@
+# Railway/Render Deployment: System Dependencies
+# This file specifies system packages needed for OpenCV and audio processing
+
+# For OpenCV (computer vision)
+libgl1-mesa-glx
+libglib2.0-0
+
+# For audio processing (librosa, SpeechRecognition)
+libsndfile1
+ffmpeg
+portaudio19-dev
+
+# For general Python packages
+build-essential
